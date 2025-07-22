@@ -16,31 +16,32 @@ function Dashboard() {
     return () => unsubscribe();
   }, []);
 
-  const upload = async () => {
-    if (!file) return alert("Please select a file first!");
-    if (!user) return alert("You must be logged in to upload.");
+    const upload = async () => {
+        if (!file) return alert("Please select a file first!");
+        if (!user) return alert("You must be logged in to upload.");
 
-    const storagePath = `images/${Date.now()}-${file.name}`;
-    const storageRef = ref(storage, storagePath);
+        const storagePath = `photos/${user.uid}/${Date.now()}-${file.name}`;
+        const storageRef = ref(storage, storagePath);
 
-    try {
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+        try {
+            await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(storageRef);
 
-      await addDoc(collection(db, "photos"), {
-        url,
-        storagePath,
-        createdAt: new Date(),
-        uid: user.uid, // 🔐 Add uploader's ID
-      });
+            await addDoc(collection(db, "photos"), {
+                url,
+                storagePath,
+                createdAt: new Date(),
+                uid: user.uid,
+            });
 
-      alert("Uploaded!");
-      setFile(null);
-    } catch (err) {
-      console.error("Upload failed:", err);
-      alert("Failed to upload.");
-    }
-  };
+            alert("Uploaded!");
+            setFile(null);
+        } catch (err) {
+            console.error("Upload failed:", err);
+            alert("Failed to upload.");
+        }
+   };
+
 
   return (
     <div className="p-6 text-center">
