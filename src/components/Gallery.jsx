@@ -1,24 +1,38 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { ref, deleteObject, getStorage } from "firebase/storage";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 function Gallery() {
   const [images, setImages] = useState([]);
+  const [user, setUser] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedImageId, setSelectedImageId] = useState(null); // for mobile tap-to-reveal
+  const [selectedImageId, setSelectedImageId] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
-      const snapshot = await getDocs(collection(db, "photos"));
-      const data = snapshot.docs.map(doc => ({
+      if (!user) return;
+
+      const photosRef = collection(db, "photos");
+      const q = query(photosRef, where("uid", "==", user.uid));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data()
       }));
       setImages(data);
     };
+
     fetchData();
-  }, []);
+  }, [user]);
 
   const handleDelete = async (image) => {
     const confirm = window.confirm("Are you sure you want to delete this image?");
@@ -29,7 +43,7 @@ function Gallery() {
       const storageRef = ref(storage, image.storagePath);
       await deleteObject(storageRef);
       await deleteDoc(doc(db, "photos", image.id));
-      setImages(prev => prev.filter(img => img.id !== image.id));
+      setImages((prev) => prev.filter((img) => img.id !== image.id));
       alert("Image deleted successfully!");
     } catch (err) {
       console.error("Failed to delete image:", err);
@@ -45,11 +59,10 @@ function Gallery() {
             key={img.id}
             className="relative group cursor-pointer"
             onClick={() => {
-              // On desktop, this won’t matter. On mobile, it toggles delete button.
               if (window.innerWidth < 640) {
                 setSelectedImageId(selectedImageId === img.id ? null : img.id);
               } else {
-                setSelectedImage(img.url); // full image view for desktop
+                setSelectedImage(img.url);
               }
             }}
           >
@@ -61,15 +74,13 @@ function Gallery() {
 
             <button
               onClick={(e) => {
-                e.stopPropagation(); // prevent parent click
+                e.stopPropagation();
                 handleDelete(img);
               }}
-              className={`
-                absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded 
-                transition-opacity duration-300
-                opacity-0 group-hover:opacity-100
-                ${selectedImageId === img.id ? "opacity-100" : ""}
-              `}
+              className={`absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded 
+                          transition-opacity duration-300
+                          opacity-0 group-hover:opacity-100
+                          ${selectedImageId === img.id ? "opacity-100" : ""}`}
             >
               🗑 Delete
             </button>

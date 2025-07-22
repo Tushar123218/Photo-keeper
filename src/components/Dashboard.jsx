@@ -1,13 +1,24 @@
 import { useState } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
-import { storage, db } from "../firebase";
+import { storage, db, auth } from "../firebase"; 
+import { onAuthStateChanged } from "firebase/auth";
 
 function Dashboard() {
   const [file, setFile] = useState(null);
+  const [user, setUser] = useState(null);
+
+  // Track logged-in user
+  useState(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const upload = async () => {
     if (!file) return alert("Please select a file first!");
+    if (!user) return alert("You must be logged in to upload.");
 
     const storagePath = `images/${Date.now()}-${file.name}`;
     const storageRef = ref(storage, storagePath);
@@ -20,6 +31,7 @@ function Dashboard() {
         url,
         storagePath,
         createdAt: new Date(),
+        uid: user.uid, // 🔐 Add uploader's ID
       });
 
       alert("Uploaded!");
@@ -44,3 +56,4 @@ function Dashboard() {
 }
 
 export default Dashboard;
+
